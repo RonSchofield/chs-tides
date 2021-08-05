@@ -25,6 +25,6 @@ URLS: Dict[str, str] = {
     ENDPOINT_TIDE_TABLE: "tide-tables/{tideTableId}",
     ENDPOINT_PHENOMENON: "phenomena/{phenomenonId}",
     ENDPOINT_STATION_STATS_DAILY: "stations/{stationId}/stats/calculate-daily-means",
-    ENDPOINT_STATION_STATS_MONTHLY: "stations/{stationId}/stats/calculate-daily-mean",
+    ENDPOINT_STATION_STATS_MONTHLY: "stations/{stationId}/stats/calculate-monthly-mean",
     ENDPOINT_HEIGHT_TYPE: "height-types/{heightTypeId}",
 }

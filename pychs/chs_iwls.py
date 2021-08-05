@@ -11,8 +11,14 @@ from .const import (
     ENDPOINT_STATIONS,
     ENDPOINT_STATION_DATA,
     ENDPOINT_STATION_METADATA,
+    ENDPOINT_STATION_STATS_DAILY,
+    ENDPOINT_STATION_STATS_MONTHLY,
     ENDPOINT_HEIGHT_TYPE,
     ENDPOINT_HEIGHT_TYPES,
+    ENDPOINT_PHENOMENA,
+    ENDPOINT_PHENOMENON,
+    ENDPOINT_TIDE_TABLE,
+    ENDPOINT_TIDE_TABLES,
     URLS,
 )
 
@@ -145,7 +151,11 @@ class CHS_IWLS:
         print(url)
         async with ClientSession() as session:
             response = await session.get(url)
-            data = await response.json()
+            headers = response.headers
+            if headers.get('content-type') == 'application/json':
+                data = await response.json()
+            else:
+                data = '0'   
             await session.close()
             return data
 
@@ -185,8 +195,9 @@ class CHS_IWLS:
         data = await self._async_get_data(url)
         await self._set_station_data(data)
         return data
-            
-    async def async_get_station_metadata(self):
+
+    async def station_metadata(self):
+        """ /api/v1/stations/{stationId}/metadata """
         # Find station summery from ID
         if not self._station_id and self._coordinates:
             self._station_id = await self._closest_station(*self._coordinates)
@@ -195,17 +206,60 @@ class CHS_IWLS:
             stationId = self._station_id,
         )
         data = await self._async_get_data(url)
-        self._station_code = data["code"]
-        self._station_name = data["officialName"]
-        self._station_operating = data["operating"]
+        await self._set_station_data(data)
         return data
-            
+
+    async def tide_tables(self, **kwargs: str):
+        """ /api/v1/tide-tables """
+        params = ['type','parent-tide-table-id']
+        qparams = self._validate_query_parameters(params, **kwargs)
+        url = ENDPOINT + ENDPOINT_TIDE_TABLES + self._construct_query_parameters(**qparams)
+        data = await self._async_get_data(url)
+        return data
+
+    async def tide_table(self,tideTableId):
+        """ /api/v1/tide-tables/{tideTableId} """
+        url = self._construct_url(
+            ENDPOINT_TIDE_TABLE,
+            tideTableId = tideTableId,
+        )
+        data = await self._async_get_data(url)
+        return data   
+
+    async def phenomena(self):
+        """ /api/v1/phenomena """
+        url = ENDPOINT + ENDPOINT_PHENOMENA
+        data = await self._async_get_data(url)
+        return data
+
+    async def phenomenon(self,phenomenonId):
+        """ /api/v1/phenomena/{phwnomenonId} """
+        url = self._construct_url(
+            ENDPOINT_PHENOMENON,
+            phenomenonId = phenomenonId,
+        )
+        data = await self._async_get_data(url)
+        return data   
+
+    async def station_monthly_mean(self, **kwargs: str):
+        """ /api/v1/stations/{stationId}/stats/calculate-monthly-mean """
+        params = ['year','month']
+        qparams = self._validate_query_parameters(params, **kwargs)
+        url = self._construct_url(
+            ENDPOINT_STATION_STATS_MONTHLY,
+            stationId = self._station_id,
+        ) + self._construct_query_parameters(**qparams)
+        data = await self._async_get_data(url)
+        return data
+
     async def async_get_height_types(self):
+        """ /api/v1/"height-types """
         url = ENDPOINT + ENDPOINT_HEIGHT_TYPES
         data = await self._async_get_data(url)
         return data
 
-    async def async_get_height_type(self,heightTypeId):
+    async def async_get_height_type(self, heightTypeId):
+        """ /api/v1/"height-types/{heightTypeId} """
         url = self._construct_url(
             ENDPOINT_HEIGHT_TYPE,
             heightTypeId = heightTypeId,
