@@ -55,6 +55,7 @@ class CHS_IWLS:
         self._station_name = ''
         self._station_operating = False
         self._station_timeSeries = None
+        self._url = None
 
     """ Static Methods """
 
@@ -148,7 +149,7 @@ class CHS_IWLS:
 
     async def _async_get_data(self, url):
         """ Retreive data from Integrated Water Level System API URL """
-        print(url)
+        self._url = url
         async with ClientSession() as session:
             response = await session.get(url)
             headers = response.headers
@@ -252,13 +253,13 @@ class CHS_IWLS:
         data = await self._async_get_data(url)
         return data
 
-    async def async_get_height_types(self):
+    async def get_height_types(self):
         """ /api/v1/"height-types """
         url = ENDPOINT + ENDPOINT_HEIGHT_TYPES
         data = await self._async_get_data(url)
         return data
 
-    async def async_get_height_type(self, heightTypeId):
+    async def get_height_type(self, heightTypeId):
         """ /api/v1/"height-types/{heightTypeId} """
         url = self._construct_url(
             ENDPOINT_HEIGHT_TYPE,
@@ -296,6 +297,11 @@ class CHS_IWLS:
     def station_timeSeries(self):
         """ Return station operation """
         return self._station_timeSeries
+
+    @property
+    def url(self):
+        """ Return last used url """
+        return self._url
 
 class InvalidCoordinatesError(Exception):
     def __init__(self, status: str):
