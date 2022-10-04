@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pychs",
-    version="0.2.2",
+    version="0.2.3",
     author="Ron Schofield",
     author_email="ronschofield@eastlink.ca",
     description="Python Wrapper for Canadian Hydrographic Service (CHS) Water Level System API",
