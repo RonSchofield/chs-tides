@@ -138,12 +138,7 @@ class CHSTides(object):
         self.station_code = None
         self.coordinates = None
         self.language = kwargs["language"]
-        self.station_name = None
-        self.station_operating = None
-        self.station_timeSeries = {}
-        self.data = {}
-        self.metadata = {}
-        self.heights = {}
+        self.station_information = {}
 
         if "station_id" in kwargs and kwargs["station_id"] is not None:
             self.station_id = kwargs["station_id"]
@@ -194,46 +189,64 @@ class CHSTides(object):
 
     """ Internal Methods """
 
-    async def update(self):
+    async def set(self):
         """"Get the latest data from The Canadian Hydrographic Service (CHS)"""
 
-        if self.station_name is None:
-            if self.station_id is not None:
-                station_data = await self.station()
-            elif self.station_code is not None:
-                station_data = await self.stations()
+        if self.station_id is None:
+            if self.station_code is not None:
+                self.station_information = await self.stations()
+                self.station_id = self.station_information["id"]
             else:
                 self.station_id = await closest_station(self.coordinates[0],self.coordinates[1])
-                station_data = await self.station()
+        self.station_information = await self.station_metadata()
+        await self.update_heights_metadata()
+        self.station_code = self.station_information["code"]
 
+        print(type(self.station_information))
+        print(self.language)
         print(datetime.utcnow())
-        self.heights = await self.get_heights()
 
-
-    async def set_station_data(self, data):
-        self.station_id = data['id']
-        self.station_code = data['code']
-        self.station_name = data['officialName']
-        self.coordinates = str(data['latitude']) + ',' + str(data['longitude'])
-        self.station_operating = data['operating']
-        self.station_timeSeries = data['timeSeries']
-
-    async def get_heights(self):
+    async def update_heights_metadata(self):
         """ Return station height data """
 
-        height_types = await self.get_height_types()
-        self.metadata = await self.station_metadata()
-        heights = self.metadata["heights"]
-        for height in heights:
+        height_types = await self.height_types()
+        heights_data = self.station_information["heights"]
+        for height in heights_data:
             heightTypeId = height["heightTypeId"]
             for height_type in height_types:
                 if height_type["id"] == heightTypeId:
                     height["code"] = height_type["code"]
                     height["nameEn"] = height_type["nameEn"]
                     height["nameFr"] = height_type["nameFr"]
-                    height.pop("heightTypeId")
-                    
-        return heights
+                    #height.pop("heightTypeId")
+
+    @property
+    def timeSeries_codes(self):
+        """ Return time station series codes """
+
+        ts_codes = []
+        for ts in self.station_information["timeSeries"]:
+            ts_codes.append(ts["code"])
+
+        return ts_codes
+
+    @property
+    def heights(self):
+        """ Get the sorted heights in highest to lowest """
+
+        height_data = []
+        height = {}
+        for h in self.station_information["heights"]:
+            height["code"] = h["code"]
+            if self.language == 'english':
+                height["name"] = h["nameEn"]
+            else:
+                height["name"] = h["nameFr"]
+            height["value"] = h["value"]
+            height_data.append(height.copy())
+        height_data = sorted(height_data, key = lambda height: (height["value"]), reverse = True)
+
+        return height_data
 
     """ Integrated Water Level System API Endpoints """
 
@@ -260,8 +273,6 @@ class CHSTides(object):
         qparams = self.validate_query_parameters(params, **kwargs)
         url = ENDPOINT + ENDPOINT_STATIONS + self.construct_query_parameters(**qparams)
         data = await get_data(url)
-        if qparams.get('code') != None:
-            await self.set_station_data(data[0])
 
         return data
 
@@ -273,7 +284,6 @@ class CHSTides(object):
             stationId = self.station_id,
         )
         data = await get_data(url)
-        await self.set_station_data(data)
 
         return data
 
@@ -288,44 +298,52 @@ class CHSTides(object):
             stationId = self.station_id,
         )
         data = await get_data(url)
-        await self.set_station_data(data)
 
         return data
 
     async def tide_tables(self, **kwargs: str):
         """ /api/v1/tide-tables """
+
         params = ['type','parent-tide-table-id']
         qparams = self.validate_query_parameters(params, **kwargs)
         url = ENDPOINT + ENDPOINT_TIDE_TABLES + self.construct_query_parameters(**qparams)
         data = await get_data(url)
+
         return data
 
     async def tide_table(self,tideTableId):
         """ /api/v1/tide-tables/{tideTableId} """
+
         url = self.construct_url(
             ENDPOINT_TIDE_TABLE,
             tideTableId = tideTableId,
         )
         data = await get_data(url)
+
         return data   
 
     async def phenomena(self):
         """ /api/v1/phenomena """
+
         url = ENDPOINT + ENDPOINT_PHENOMENA
         data = await get_data(url)
+
         return data
 
     async def phenomenon(self,phenomenonId):
         """ /api/v1/phenomena/{phwnomenonId} """
+
         url = self.construct_url(
             ENDPOINT_PHENOMENON,
             phenomenonId = phenomenonId,
         )
         data = await get_data(url)
+
         return data   
 
     async def station_monthly_mean(self, **kwargs: str):
         """ /api/v1/stations/{stationId}/stats/calculate-monthly-mean """
+
         params = ['year','month']
         qparams = self.validate_query_parameters(params, **kwargs)
         url = self.construct_url(
@@ -333,9 +351,10 @@ class CHSTides(object):
             stationId = self._station_id,
         ) + self.construct_query_parameters(**qparams)
         data = await get_data(url)
+
         return data
 
-    async def get_height_types(self):
+    async def height_types(self):
         """ /api/v1/"height-types """
 
         url = ENDPOINT + ENDPOINT_HEIGHT_TYPES
@@ -343,7 +362,7 @@ class CHSTides(object):
 
         return data
 
-    async def get_height_type(self, heightTypeId):
+    async def height_type(self, heightTypeId):
         """ /api/v1/"height-types/{heightTypeId} """
 
         url = self.construct_url(
@@ -353,15 +372,6 @@ class CHSTides(object):
         data = await get_data(url)
 
         return data
-
-    @property
-    def timeSeries_codes(self):
-        """ Return time station series codes """
-        ts_codes = []
-        for ts in self.station_timeSeries:
-            ts_codes.append(ts["code"])
-
-        return ts_codes
 
 class InvalidCoordinatesError(Exception):
     def __init__(self, status: str):

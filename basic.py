@@ -8,12 +8,12 @@ async def main():
     #tides = CHSTides(station_code='00482')
     #tides = CHSTides(coordinates=(44.65,-63.98)) # Home
     tides = CHSTides(coordinates=(44.67,-63.60)) # Work
-    await tides.update()
+    await tides.set()
     print(tides.station_id)
     print(tides.station_code)
-    print(tides.station_name)
-    print(tides.coordinates)
+    print(tides.station_information)
     print(tides.timeSeries_codes)
+    print("** heights **")
     print(tides.heights)
 
     print("ran")
