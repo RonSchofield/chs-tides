@@ -25,6 +25,8 @@ from .const import (
     URLS,
 )
 
+M2FT : float = 3.28084
+
 LOG = logging.getLogger(__name__)
 
 __all__ = ["CHSTides"]
@@ -46,24 +48,6 @@ def validate_station_code(station_code):
     if not re.fullmatch(r"\d{5}", station_code):
         raise vol.Invalid('Station Code must be of the form "#####"')
     return station_code
-
-#async def get_station(**kwargs):
-#   """Get the station information"""
-#
-#    station_schema = vol.Schema(
-#        vol.All(
-#            {
-#                vol.Required(
-#                    vol.Any("station_id", "station_code"),
-#                    msg="Must be either 'station_id' or 'station_code'",
-#                ): object,
-#            }
-#        )
-#    )
-#    if "station_id" in kwargs and kwargs["station_id"] is not None:
-#        print("station_id")
-#    if "station_code" in kwargs and kwargs["station_code"] is not None:
-#        print("station_code")
 
 async def get_stations():
     """Get list of all sites from The Canadian Hydrographic Service (CHS), for auto-config."""
@@ -116,6 +100,7 @@ class CHSTides(object):
                         vol.Any("station_id", "station_code", "coordinates"),
                         msg="Must specify either 'station id', 'station code' or 'corrdinates'",
                     ): object,
+                    vol.Optional("measurement"): object,
                     vol.Optional("language"): object,
                 },
                 {
@@ -124,6 +109,9 @@ class CHSTides(object):
                     vol.Optional("coordinates"): (
                         vol.All(vol.Or(int,float), vol.Range(-90,90)),
                         vol.All(vol.Or(int,float), vol.Range(-180,180)),
+                    ),
+                    vol.Optional("measurement", default="m"): vol.In(
+                        ["m", "ft"]
                     ),
                     vol.Optional("language", default="english"): vol.In(
                         ["english", "french"]
@@ -138,7 +126,9 @@ class CHSTides(object):
         self.station_code = None
         self.coordinates = None
         self.language = kwargs["language"]
+        self.measurement = kwargs["measurement"]
         self.station_information = {}
+        self.conditions = {}
 
         if "station_id" in kwargs and kwargs["station_id"] is not None:
             self.station_id = kwargs["station_id"]
@@ -190,7 +180,7 @@ class CHSTides(object):
     """ Internal Methods """
 
     async def set(self):
-        """"Get the latest data from The Canadian Hydrographic Service (CHS)"""
+        """" Set the station information """
 
         if self.station_id is None:
             if self.station_code is not None:
@@ -200,14 +190,126 @@ class CHSTides(object):
                 self.station_id = await closest_station(self.coordinates[0],self.coordinates[1])
         self.station_information = await self.station_metadata()
         await self.update_heights_metadata()
+        await self.update_tidetable_metadata()
+        await self.update_timeseries_metadata()
         self.station_code = self.station_information["code"]
 
-        print(type(self.station_information))
-        print(self.language)
-        print(datetime.utcnow())
+    async def update(self):
+        """" Get the latest data from The Canadian Hydrographic Service (CHS) """
+
+        if self.station_id is None:
+            await self.set()
+        self.conditions["conditions"] = await self.current_conditions()
+        self.conditions["hilo"] = await self.last_next_hilo()
+
+    async def current_conditions(self):
+        """" Get the current tide conditions """
+        
+        conditions = dict()
+        currentDT = datetime.utcnow()
+        parameters = {
+            "time-series-code":"wlp",
+            "from":currentDT - timedelta(hours=7),
+            "to":currentDT + timedelta(hours=7)
+        }
+        tide_data = await self.station_data(**parameters)
+        event_previous = None           # previous event value
+        event_next = None               # next event value
+        event_date = None               # date of event just before current
+        low_value = 99                  # Set to high value that can never be reached
+        high_value = -99                # Set to low value that can never be reached
+        for event in tide_data:
+            eventDate = datetime.strptime(event["eventDate"],"%Y-%m-%dT%H:%M:%SZ")
+            eventValue = event["value"]
+            if self.measurement == 'ft':
+                eventValue = round(event["value"] * M2FT,2)
+            # set high and low tide height values
+            if eventValue < low_value:
+                low_value = eventValue
+            if eventValue > high_value:
+                high_value = eventValue
+            # check for time compared to current
+            if eventDate < currentDT:
+                event_previous = eventValue
+                event_date = eventDate
+            if eventDate > currentDT and event_next == None:
+                event_next = eventValue
+                break
+        # Set conditions data       
+        conditions["value"] = event_previous
+        conditions["eventDate"] = event_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        # figure out if tide is rising or falling
+        if event_previous < event_next:
+            conditions["status"] = "rising"
+        else:
+            conditions["status"] = "falling"
+
+        return conditions
+
+    
+    async def last_next_hilo(self):
+        """ Get the last and next high and low times """
+
+        lowtideLang = ["low tide","marée basse"]
+        hightideLang = ["high tide","marée haute"]
+        if self.language == "english":
+            lang = 0
+        else:
+            lang = 1
+        currentDT = datetime.utcnow()
+        parameters = {
+            "time-series-code":"wlp-hilo",
+            "from":currentDT - timedelta(hours=7),
+            "to":currentDT + timedelta(hours=7)
+        }
+        tide_data = await self.station_data(**parameters)
+        for event in tide_data:
+            event.pop("qcFlagCode")
+            event.pop("timeSeriesId")
+            if self.measurement == 'ft':
+                event["value"] = round(event["value"] * M2FT,2)
+        if tide_data[0]["value"] < tide_data[1]["value"]:
+            tide_data[0]["event"] = lowtideLang[lang]
+            tide_data[1]['event'] = hightideLang[lang]
+        else:
+            tide_data[0]["event"] = hightideLang[lang]
+            tide_data[1]["event"] = lowtideLang[lang]
+
+        return tide_data
+
+
+    async def update_timeseries_metadata(self):
+        """ Replace timeSeries phenomenonId with laquage name """
+
+        timeSeries_Data = self.station_information["timeSeries"]
+        for timeSeries in timeSeries_Data:
+            timeSeries.pop("id")
+            if self.language == 'english':
+                timeSeries["name"] = timeSeries["nameEn"]
+            else:
+                timeSeries["name"] = timeSeries["nameFr"]
+            timeSeries.pop("nameEn")
+            timeSeries.pop("nameFr")
+            phenomena = await self.phenomenon(timeSeries["phenomenonId"]) 
+            if self.language == "english":
+                timeSeries["name"] = phenomena["nameEn"]
+            else:
+                timeSeries["name"] = phenomena["nameFr"]
+            timeSeries.pop("phenomenonId")
+
+    async def update_tidetable_metadata(self):
+        """ Replace tideTableId with langauge name """
+
+        tidetable = await self.tide_table(self.station_information["tideTableId"])
+        if self.language == "english":
+           self.station_information["tideTable"] = tidetable["nameEn"]
+        else:
+           self.station_information["tideTable"] = tidetable["nameFr"] 
+        self.station_information.pop("tideTableId")
+
 
     async def update_heights_metadata(self):
-        """ Return station height data """
+        """ Replace heightTypeId with langauge name """
 
         height_types = await self.height_types()
         heights_data = self.station_information["heights"]
@@ -216,10 +318,14 @@ class CHSTides(object):
             for height_type in height_types:
                 if height_type["id"] == heightTypeId:
                     height["code"] = height_type["code"]
-                    height["nameEn"] = height_type["nameEn"]
-                    height["nameFr"] = height_type["nameFr"]
-                    #height.pop("heightTypeId")
-
+                    if self.language == 'english':
+                        height["name"] = height_type["nameEn"]
+                    else:
+                        height["name"] = height_type["nameFr"]
+                    height.pop("heightTypeId")
+            if self.measurement == 'ft':
+                height["value"] = round(height["value"] * M2FT,2)
+                    
     @property
     def timeSeries_codes(self):
         """ Return time station series codes """
@@ -238,10 +344,7 @@ class CHSTides(object):
         height = {}
         for h in self.station_information["heights"]:
             height["code"] = h["code"]
-            if self.language == 'english':
-                height["name"] = h["nameEn"]
-            else:
-                height["name"] = h["nameFr"]
+            height["name"] = h["name"]
             height["value"] = h["value"]
             height_data.append(height.copy())
         height_data = sorted(height_data, key = lambda height: (height["value"]), reverse = True)
@@ -255,10 +358,9 @@ class CHSTides(object):
 
         params = ['time-series-code','from','to']
         qparams = self.validate_query_parameters(params, **kwargs)
-        await self.get_station_id()
         url = self.construct_url(
             ENDPOINT_STATION_DATA,
-            stationId = self._station_id,
+            stationId = self.station_id,
         ) + self.construct_query_parameters(**qparams)
         data = await get_data(url)
 
