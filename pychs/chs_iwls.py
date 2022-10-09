@@ -189,6 +189,7 @@ class CHSTides(object):
             else:
                 self.station_id = await closest_station(self.coordinates[0],self.coordinates[1])
         self.station_information = await self.station_metadata()
+        self.station_information["measurement"] = self.measurement
         await self.update_heights_metadata()
         await self.update_tidetable_metadata()
         await self.update_timeseries_metadata()
