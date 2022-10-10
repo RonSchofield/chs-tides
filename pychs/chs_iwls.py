@@ -326,7 +326,9 @@ class CHSTides(object):
                     height.pop("heightTypeId")
             if self.measurement == 'ft':
                 height["value"] = round(height["value"] * M2FT,2)
-                    
+        heights_data = sorted(heights_data, key = lambda height: (height["value"]), reverse = True)  
+        self.station_information["heights"] = heights_data            
+
     @property
     def timeSeries_codes(self):
         """ Return time station series codes """
@@ -348,7 +350,6 @@ class CHSTides(object):
             height["name"] = h["name"]
             height["value"] = h["value"]
             height_data.append(height.copy())
-        height_data = sorted(height_data, key = lambda height: (height["value"]), reverse = True)
 
         return height_data
 
