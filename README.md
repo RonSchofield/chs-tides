@@ -31,9 +31,8 @@ print(tide_en.station_information)
 asyncio.run(tides_en.update())
 print(tides_en.conditions)
 ```
-
 ### Example Station Information
-```json
+```python
 {
     "id": "5cebf1df3d0f4a073c4bbcbb",
     "code": "00490",
@@ -61,16 +60,45 @@ print(tides_en.conditions)
     ],
     "heights": [
         {"value": 6.88, "code": "HAT", "name": "Highest Astronomical Tide"},
-        {"value": -0.31, "code": "LAT", "name": "Lowest Astronomical Tide"},
         {"value": 6.79, "code": "HHWLT", "name": "Higher High Water Large Tide"},
-        {"value": -0.24, "code": "LLWLT", "name": "Lower Low Water Large Tide"},
         {"value": 5.77, "code": "HHWMT", "name": "Higher High Water Mean Tide"},
-        {"value": 0.98, "code": "LLWMT", "name": "Lower Low Water Mean Tide"},
         {"value": 5.57, "code": "HWL", "name": "High Water Level"},
-        {"value": 1.32, "code": "LWL", "name": "Low Water Level"},
         {"value": 3.39, "code": "MWL", "name": "Mean Water Level"},
+        {"value": 1.32, "code": "LWL", "name": "Low Water Level"},
+        {"value": 0.98, "code": "LLWMT", "name": "Lower Low Water Mean Tide"},
+        {"value": -0.24, "code": "LLWLT", "name": "Lower Low Water Large Tide"},
+        {"value": -0.31, "code": "LAT", "name": "Lowest Astronomical Tide"},
     ],
     "measurement": "ft",
     "tideTable": "Atlantic Coast and Bay of Fundy",
 }
-'''
+```
+### Example Conditions
+```python
+{
+    "conditions": {
+        "value": 5.21,
+        "eventDate": "2022-10-10T23:00:00Z",
+        "status": "rising",
+    },
+    "hilo": [
+        {"eventDate": "2022-10-10T18:41:00Z", "value": 0.66, "event": "low tide"},
+        {"eventDate": "2022-10-11T00:23:00Z", "value": 5.91, "event": "high tide"},
+    ],
+}
+```
+## Rest-API Wrapping
+All API methods are wrapped and can be called. This can happen after the CHSTides object is created and the station is set. The api call uses the same format and parameters as the REST API. For example:
+
+To get the a specific height type the api call is `/api/v1/height-types/{heightTypeId}`
+which requires a parameter called `heightTypeId`. So to call this in a CHSTide object, you would call it like this:
+
+```python
+data = await tides.height_type(heightTypeId="5cec2eba3d0f4a04cc64d5d7")
+```
+
+
+
+
+
+

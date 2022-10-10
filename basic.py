@@ -14,6 +14,9 @@ async def main():
     await tides.update()
     print(tides.conditions)
 
+    print(await tides.height_type(heightTypeId="5cec2eba3d0f4a04cc64d5d7"))
+
+
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.run_until_complete(asyncio.sleep(1))

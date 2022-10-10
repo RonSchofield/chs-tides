@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="pychs",
+    name="chs-tides",
     version="0.3.1",
     author="Ron Schofield",
     author_email="ronschofield@eastlink.ca",
