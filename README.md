@@ -1,37 +1,37 @@
-# Canadian Hydrographic Service (pychs)
+#  Canadian Hydrographic Service (CHS) Tides
 
-This package provides for accessing official data on navigating modelled surface currents and water levels by the [Canadian Hydrographic Service](https://tides.gc.ca/en/web-services-offered-canadian-hydrographic-service).
+This python package provides for accessing official data on navigating modelled surface currents and water levels by the [Canadian Hydrographic Service](https://tides.gc.ca/en/web-services-offered-canadian-hydrographic-service).
 
 ## Rest-API Documentation
-`pychs` uses the REST-API programming interface for the Integrated Water Level System to  access the water level database (observations, forecasts, predictions) for stations across Canada.
+`chstides` uses the REST-API programming interface for the Integrated Water Level System to  access the water level database (observations, forecasts, predictions) for stations across Canada.
 
 The public API documentation is available in English only on the following website: (https://api-iwls.dfo-mpo.gc.ca/swagger-ui.html).
 
 ## Station Information and Current Tide Conditions
 
-`CHSTides` provides station information and current tide conditions. It automatically determines which station to use based on latitude/longitude provided. It is also possible to specify a specific station code of the form `00490` based on those displayed and  listed on [stations page](https://tides.gc.ca/en/stations). For example:
+`chstides` provides station information and current tide conditions. It automatically determines which station to use based on latitude/longitude provided. It is also possible to specify a specific station code of the form `00490` based on those displayed and  listed on [stations page](https://tides.gc.ca/en/stations). For example:
 
 ```python
 import asyncio
 
-from pychs import CHSTides
+from chstides import TideData
 
-tides_en = CHSTides(coordinates=(44.67,-63.60))
-tides_fr = CHSTides(station_code='03251', language='french')
-tides_ft = CHSTides(station_code='00490', measurements=ft)
+tides_en = TideData(coordinates=(44.67,-63.60))
+tides_fr = TideData(station_code='03251', language='french')
+tides_ft = TideData(station_code='00490', measurements=ft)
 
 # set must be called before any other function
 # only needs to be run once for each station
 asyncio.run(tides_en.set())
 
 # station information
-print(tide_en.station_information)
+print(tide_en.station_data)
 
 # current conditions
 asyncio.run(tides_en.update())
 print(tides_en.conditions)
 ```
-### Example Station Information
+### Example Station Data
 ```python
 {
     "id": "5cebf1df3d0f4a073c4bbcbb",

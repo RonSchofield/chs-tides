@@ -4,14 +4,14 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="chs-tides",
-    version="0.3.1",
+    name="chstides",
+    version="0.3.2",
     author="Ron Schofield",
     author_email="ronschofield@eastlink.ca",
-    description="Python Wrapper for Canadian Hydrographic Service (CHS) Water Level System API",
+    description="Python Wrapper for Canadian Hydrographic Service (CHS) Integrated Water Level System API",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/RonSchofield/pychs",
+    url="https://github.com/RonSchofield/chs-tides",
     packages=setuptools.find_packages(),
     install_requires=[
         "aiohttp",
