@@ -1,10 +1,10 @@
 import asyncio
 
-from chstides import TideData
+from pychs import CHSTides
 
 async def main():
 
-    tides = TideData(coordinates=(44.67,-63.60), measurement="ft") # Work
+    tides = CHSTides(coordinates=(44.67,-63.60), measurement="ft") # Work
     await tides.set()
     print(tides.station_information)
 

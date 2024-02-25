@@ -1,4 +1,4 @@
-"""Constants for The Canadian Hydrographic Service (CHS) Integrated Water Level System API."""
+"""Constants for The Canadian Hydrographic Service (CHS) Web Services library."""
 from typing import Dict
 
 ENDPOINT = "https://api-iwls.dfo-mpo.gc.ca/api/v1/"
