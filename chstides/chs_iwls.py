@@ -29,7 +29,7 @@ M2FT : float = 3.28084
 
 LOG = logging.getLogger(__name__)
 
-__all__ = ["CHSTides"]
+__all__ = ["TideData"]
 
 
 def validate_station_id(station_id):
@@ -87,8 +87,8 @@ async def get_data(url):
 
     return data
 
-class CHSTides(object):
-    """Main class for The Canadian Hydrographic Service (CHS) API requests."""
+class TideData(object):
+    """Main class for The Canadian Hydrographic Service (CHS) Integrated Water Level System API requests."""
 
     def __init__(self, **kwargs):
         """Initialize the data object"""
